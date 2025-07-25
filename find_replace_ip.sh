@@ -243,7 +243,8 @@ find_and_replace() {
         # Replace value in file
         local count
         count=$(replace_dns_in_file "$file" "$old_value" "$new_value")
-        if [[ $? -eq 0 && $count -gt 0 ]]; then
+        local exit_code=$?
+        if [[ $exit_code -eq 0 && $count -gt 0 ]]; then
             ((total_files++))
             ((total_replacements += count))
         fi
