@@ -168,6 +168,7 @@ replace_dns_in_file() {
     
     # Check if file contains the old value
     if ! grep -q "$old_value" "$file" 2>/dev/null; then
+        echo "0"
         return 0
     fi
     
@@ -190,11 +191,14 @@ replace_dns_in_file() {
         else
             log "ERROR" "Failed to replace in: $file"
             [[ -f "$file.tmp" ]] && mv "$file.tmp" "$file"  # Restore original
+            echo "0"
             return 1
         fi
     fi
     
-    return $count
+    # Output the count so it can be captured
+    echo "$count"
+    return 0
 }
 
 # Function to find files and replace DNS names or IP addresses
@@ -237,12 +241,11 @@ find_and_replace() {
         fi
         
         # Replace value in file
-        if replace_dns_in_file "$file" "$old_value" "$new_value"; then
-            local count=$?
-            if [[ $count -gt 0 ]]; then
-                ((total_files++))
-                ((total_replacements += count))
-            fi
+        local count
+        count=$(replace_dns_in_file "$file" "$old_value" "$new_value")
+        if [[ $? -eq 0 && $count -gt 0 ]]; then
+            ((total_files++))
+            ((total_replacements += count))
         fi
         
     done < <(find "${find_args[@]}" -print0 2>/dev/null)
