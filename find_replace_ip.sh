@@ -168,7 +168,6 @@ replace_dns_in_file() {
     
     # Check if file contains the old value
     if ! grep -q "$old_value" "$file" 2>/dev/null; then
-        echo "0"
         return 0
     fi
     
@@ -177,7 +176,7 @@ replace_dns_in_file() {
     count=${count// /}  # Remove any spaces from wc output
     
     if [[ $DRY_RUN == true ]]; then
-        echo "[DRY RUN] Would replace $count occurrence(s) in: $file" >&2
+        echo "[DRY RUN] Would replace $count occurrence(s) in: $file"
     else
         # Create backup if requested
         if [[ $BACKUP == true ]]; then
@@ -187,18 +186,15 @@ replace_dns_in_file() {
         # Perform replacement using sed
         if sed -i.tmp "s|$old_value|$new_value|g" "$file" 2>/dev/null; then
             rm -f "$file.tmp"
-            echo "Replaced $count occurrence(s) in: $file" >&2
+            echo "Replaced $count occurrence(s) in: $file"
         else
             log "ERROR" "Failed to replace in: $file"
             [[ -f "$file.tmp" ]] && mv "$file.tmp" "$file"  # Restore original
-            echo "0"
             return 1
         fi
     fi
     
-    # Output only the count to stdout so it can be captured
-    echo "$count"
-    return 0
+    return $count
 }
 
 # Function to find files and replace DNS names or IP addresses
@@ -208,25 +204,27 @@ find_and_replace() {
     local new_value="$3"
     local total_files=0
     local total_replacements=0
+    local find_args=()
+    
+    # Build find command arguments
+    find_args+=("$directory")
+    
+    if [[ $RECURSIVE == false ]]; then
+        find_args+=("-maxdepth" "1")
+    fi
+    
+    find_args+=("-type" "f")
+    
+    # Add exclusions for directories
+    for exclude in $EXCLUDE_DIRS; do
+        find_args+=("!" "-path" "*/$exclude/*")
+    done
     
     log "INFO" "${DRY_RUN:+DRY RUN: }Searching for '$old_value' to replace with '$new_value'"
     log "INFO" "Directory: $directory"
     echo "----------------------------------------"
     
-    # Build find command based on recursion setting
-    local find_cmd
-    if [[ $RECURSIVE == false ]]; then
-        find_cmd="find \"$directory\" -maxdepth 1 -type f"
-    else
-        find_cmd="find \"$directory\" -type f"
-    fi
-    
-    # Add exclusions for directories
-    for exclude in $EXCLUDE_DIRS; do
-        find_cmd+=" ! -path \"*/$exclude/*\""
-    done
-    
-    # Process files using process substitution
+    # Process files
     while IFS= read -r -d '' file; do
         # Check if we should include this file based on extension
         if ! should_include_file "$file"; then
@@ -239,15 +237,15 @@ find_and_replace() {
         fi
         
         # Replace value in file
-        local count
-        count=$(replace_dns_in_file "$file" "$old_value" "$new_value")
-        local exit_code=$?
-        if [[ $exit_code -eq 0 && $count -gt 0 ]]; then
-            ((total_files++))
-            ((total_replacements += count))
+        if replace_dns_in_file "$file" "$old_value" "$new_value"; then
+            local count=$?
+            if [[ $count -gt 0 ]]; then
+                ((total_files++))
+                ((total_replacements += count))
+            fi
         fi
         
-    done < <(eval "$find_cmd -print0" 2>/dev/null)
+    done < <(find "${find_args[@]}" -print0 2>/dev/null)
     
     # Summary
     echo "----------------------------------------"
