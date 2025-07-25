@@ -208,27 +208,25 @@ find_and_replace() {
     local new_value="$3"
     local total_files=0
     local total_replacements=0
-    local find_args=()
-    
-    # Build find command arguments
-    find_args+=("$directory")
-    
-    if [[ $RECURSIVE == false ]]; then
-        find_args+=("-maxdepth" "1")
-    fi
-    
-    find_args+=("-type" "f")
-    
-    # Add exclusions for directories
-    for exclude in $EXCLUDE_DIRS; do
-        find_args+=("!" "-path" "*/$exclude/*")
-    done
     
     log "INFO" "${DRY_RUN:+DRY RUN: }Searching for '$old_value' to replace with '$new_value'"
     log "INFO" "Directory: $directory"
     echo "----------------------------------------"
     
-    # Process files
+    # Build find command based on recursion setting
+    local find_cmd
+    if [[ $RECURSIVE == false ]]; then
+        find_cmd="find \"$directory\" -maxdepth 1 -type f"
+    else
+        find_cmd="find \"$directory\" -type f"
+    fi
+    
+    # Add exclusions for directories
+    for exclude in $EXCLUDE_DIRS; do
+        find_cmd+=" ! -path \"*/$exclude/*\""
+    done
+    
+    # Process files using process substitution
     while IFS= read -r -d '' file; do
         # Check if we should include this file based on extension
         if ! should_include_file "$file"; then
@@ -249,7 +247,7 @@ find_and_replace() {
             ((total_replacements += count))
         fi
         
-    done < <(find "${find_args[@]}" -print0 2>/dev/null)
+    done < <(eval "$find_cmd -print0" 2>/dev/null)
     
     # Summary
     echo "----------------------------------------"
