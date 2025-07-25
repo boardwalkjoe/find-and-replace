@@ -88,19 +88,6 @@ validate_ip() {
     local ip="$1"
     local ip_regex='^([0-9]{1,3}\.){3}[0-9]{1,3}
 
-# Function to check if directory should be excluded
-is_excluded_dir() {
-    local dir="$1"
-    local basename_dir=$(basename "$dir")
-    
-    for exclude in $EXCLUDE_DIRS; do
-        if [[ "$basename_dir" == "$exclude" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 # Function to check if file extension should be included
 should_include_file() {
     local file="$1"
