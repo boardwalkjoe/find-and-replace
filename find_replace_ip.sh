@@ -177,7 +177,7 @@ replace_dns_in_file() {
     count=${count// /}  # Remove any spaces from wc output
     
     if [[ $DRY_RUN == true ]]; then
-        echo "[DRY RUN] Would replace $count occurrence(s) in: $file"
+        echo "[DRY RUN] Would replace $count occurrence(s) in: $file" >&2
     else
         # Create backup if requested
         if [[ $BACKUP == true ]]; then
@@ -187,7 +187,7 @@ replace_dns_in_file() {
         # Perform replacement using sed
         if sed -i.tmp "s|$old_value|$new_value|g" "$file" 2>/dev/null; then
             rm -f "$file.tmp"
-            echo "Replaced $count occurrence(s) in: $file"
+            echo "Replaced $count occurrence(s) in: $file" >&2
         else
             log "ERROR" "Failed to replace in: $file"
             [[ -f "$file.tmp" ]] && mv "$file.tmp" "$file"  # Restore original
@@ -196,7 +196,7 @@ replace_dns_in_file() {
         fi
     fi
     
-    # Output the count so it can be captured
+    # Output only the count to stdout so it can be captured
     echo "$count"
     return 0
 }
